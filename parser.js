@@ -4,6 +4,38 @@
  *@module parser
  */
 
+let patterns;
+
+{
+	const _$ = String.raw,
+		  qts = `"'\``,
+		  optLdr = _$`(?:--|-\D)`,                           
+		  notLdr = _$`(?!--|-\D)`,                           
+		  wsLdr = _$`(?:^|\s+)`,                              
+							 
+		  //list of values
+		  valList = _$`${notLdr}(\S(?:\s+${notLdr}|\S)*\S)`,
+
+		  //lead values before any option
+		  leadVals = _$`^\s*${valList}` ,                                 
+
+		  //from the first option upto -- or EOL
+		  optVals = _$`${wsLdr}(${optLdr}(?:\S(?:\s+(?!--(?:\s|$))|\S)*\S))`, 
+
+		  //everything after --
+		  trailingVals = _$`${wsLdr}--\s+(\S.*\S)\s*$`,
+
+		  //complete command string
+		  cmdStr = _$`(?:${leadVals})?(?:${optVals})?(?:${trailingVals})?`,
+
+		  bRef = ( n ) => '\\'+n,    //avoid annoying 'Octal esape sequences' error
+		  value = _$`([^${qts}\s=][^\s=]*|([${qts})(.+?)${bRef( 2 )})`,
+		  option = _$`${wsLdr}(${optLdr})([a-z$@#*&]\S*)`
+		  ;
+
+		  patterns = {valList,optVals,leadVals, trailingVals,cmdStr, option,value};
+}
+
 const optPtn = /(--|-(?!\d))([a-z$@#*&]\S*)/.source,
 	  optionValStrRgx = /(?:^|\s)(--|-(?!\d))([a-z$@#*&]*)(?=\s+|=|$)(?:\s*(?:\s|=)\s*(\S(?!--|-\D)(?:.(?!--|-\D))*))?/gi,
 	  leadValStrRgx = /^\s*(?!--|-\D)((?:\s+(?!--|-\D)|\S)*)\S/i,
@@ -46,23 +78,24 @@ function parseValueStr( str = '', stripQuotes = true ){
 	return values;
 }
 
+
 /**
  *
  * @return {*}
  * @constructor
  */
 function Entries(){
-	return Object.create( {
-
-		                      update( option, values, type ){
-			                      if( !this[option] ){
-				                      return this[option] = { values, type };
-			                      }
-			                      return this[option].values.push( ...values );
-		                      }
-
-	                      } );
+	return Object.create(Entries.prototype);
 }
+Entries.protytype={ 
+	update( option, values, type ){
+		if( !this[option] ){
+			return this[option] = { values, type };
+		}
+		return this[option].values.push( ...values );
+	} 
+};
+
 
 /**
  *
@@ -109,3 +142,8 @@ function parse( cmdStr, { stripQuotes = true }={} ){
 
 module.exports = parse;
 module.exports.optionTypes = optionTypes;
+module.exports.$test = {
+	patterns,
+	regexExec,
+	parseValueStr
+};
