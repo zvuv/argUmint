@@ -4,7 +4,7 @@
  *@module run-zargs
  */
 
-const argU = require( './argUmint' );
+const argU = require( './../argUmint' );
 
 let config = {
 	defaults: { u: 'you', x: 'ham' },

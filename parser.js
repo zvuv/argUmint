@@ -4,54 +4,13 @@
  *@module parser
  */
 
-let patterns;
 
-	const _$ = String.raw;
-{
-	const
-		  qts = `"'\``,
-		  optLdr = _$`(?:--|-\D)`,                           
-		  notLdr = _$`(?!--|-\D)`,                           
-		  wsLdr = _$`(?:^|\s+)`,                              
-							 
-		  //list of values
-		  valList = _$`${notLdr}(\S(?:\s+${notLdr}|\S)*\S)`,
-
-		  //lead values before any option
-		  leadVals = _$`^\s*${valList}` ,                                 
-
-		  //from the first option upto -- or EOL
-		  optVals = _$`${wsLdr}(${optLdr}(?:\S(?:\s+(?!--(?:\s|$))|\S)*\S))`, 
-
-		  //everything after --
-		  trailingVals = _$`${wsLdr}--\s+(\S.*\S)\s*$`,
-
-		  //complete command string
-		  cmdStr = _$`(?:${leadVals})?(?:${optVals})?(?:${trailingVals})?`,
-
-		  bRef = ( n ) => '\\'+n,    //avoid annoying 'Octal esape sequences' error
-		  value = _$`([^${qts}\s=][^\s=]*|([${qts}])(.+?)${bRef( 2 )})`,
-		  option = _$`${wsLdr}(${optLdr})([a-z$@#*&]\S*)`
-		  ;
-
-		  patterns = {valList,optVals,leadVals, trailingVals,cmdStr, option,value};
-}
-
-const regex = {
-	splitCmdStr: /\s(?=--|-\D)/i,
-	cmdStr: new RegExp(patterns.cmdStr,'i'),
-	value: new RegExp(patterns.value,'i'),
-	option:new RegExp(patterns.options,'ig') 
-};
-
-const optPtn = /(--|-(?!\d))([a-z$@#*&]\S*)/.source,
-	  optionValStrRgx = /(?:^|\s)(--|-(?!\d))([a-z$@#*&]*)(?=\s+|=|$)(?:\s*(?:\s|=)\s*(\S(?!--|-\D)(?:.(?!--|-\D))*))?/gi,
-	  leadValStrRgx = /^\s*(?!--|-\D)((?:\s+(?!--|-\D)|\S)*)\S/i,
-	  // leadValStrRgx = /^\s*(\S(?:.(?!--|-\D))*)/gi,
-	  terminalStrRgx = /(?:^|\s)--\s+(\S.*\S)\s*$/i,
-	  valuesRgx = /([^'"`\s=][^\s=]*|(['"`])(.+?)\2)/gi,
-	  optionTypes = { '-': '-', '--': '--', '_': '_', '__': '__' }
-	  ;
+const _$=String.raw,
+		optionPtn = _$`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&]\S*)|\s)`,
+      valuePtn = _$`([^'"\`\s=][^\s=]*)`,
+		qtStringPtn = `(['"\`])(.+)\\4`,
+		regex = new RegExp(`${optionPtn}|${valuePtn}|${qtStringPtn}`,'gi')
+;
 
 /**
  *
@@ -64,26 +23,10 @@ function regexExec( str, rgx, callback ){
 	let match;
 
 	while( (match = rgx.exec( str )) !== null ){
+		//don't get stuck on zero length matches.....
 		if( match.index === rgx.lastIndex ){ rgx.lastIndex++;}
 		else{ callback( match );}
 	}
-}
-
-/**
- * @param str
- * @param stripQuotes
- * @return {Array}
- */
-function parseValueStr( str = '', stripQuotes = true ){
-	let values = [];
-
-	regexExec( str, valuesRgx, match =>{
-		let [, str, quote, unQuotedStr] = match,
-			  val = stripQuotes && quote? unQuotedStr: str
-			  ;
-		values.push( val );
-	} );
-	return values;
 }
 
 
@@ -93,17 +36,22 @@ function parseValueStr( str = '', stripQuotes = true ){
  * @constructor
  */
 function Entries(){
-	return Object.create(Entries.prototype);
+	if(!(this instanceof Entries)){
+		return new Entries();
+	}
 }
-Entries.protytype={ 
-	update( option, values, type ){
-		if( !this[option] ){
-			return this[option] = { values, type };
-		}
-		return this[option].values.push( ...values );
-	} 
+Entries.prototype={
+	update( option, value, type ){
+		if( !this[option] ){ this[option] = { values:[], type }; }
+		if(value === undefined || value === null){return;}
+
+		value = value.trim();
+		if(value){this[option].values.push( value );}
+	}
 };
 
+
+const optionTypes = { 'h': '-', 'hh': '--', 'u': '_', 'uu': '__' };
 
 /**
  *
@@ -111,38 +59,38 @@ Entries.protytype={
  * @param stripQuotes
  * @return {*}
  */
-function parse( cmdStr, { stripQuotes = true }={} ){
-	let entries = Entries();
+function parse( cmdStr,  stripQuotes = true  ){
+	let entries = Entries(),
+	currentOpt = '_',
+	currentType=optionTypes.u
+	;
 
-	//Parse the leading values............................
-	let splits = cmdStr.split( leadValStrRgx );
+	regexExec( cmdStr, regex , match =>{
+		let [matchedStr,optLdr,optName,value,qt, unQtString]=match;
 
-	if( splits.length > 1 ){
-		let [, leadStr, remainder] = splits,
-			  leadVals = parseValueStr( leadStr, stripQuotes );
+		if(optLdr!==undefined){
 
-		entries.update( '_', leadVals, optionTypes._ );
-		cmdStr = remainder;
-	}
+			// trailing values................
+			if(currentType == optionTypes.uu){
+				value = matchedStr;
+			}
+			// start of trailing values.......
+			else if( '--' == optLdr && !optName.trim() ){
+				currentOpt = '__';
+				currentType = optionTypes.uu;
+			}
+			//follow the leader..............
+			else{
+				currentOpt = optName;
+				currentType = optLdr;
+			}
 
-	//Parse the trailing values...........................
-	splits = cmdStr.split( terminalStrRgx );
+		}
+		else if(value === undefined){
+			value=stripQuotes? unQtString:matchedStr;
+		}
 
-	if( splits.length > 1 ){
-		let [optValuesStr,terminalStr] = cmdStr.split( terminalStrRgx ),
-			  terminalVals = parseValueStr( terminalStr, stripQuotes )
-			  ;
-
-		entries.update( '__', terminalVals, optionTypes.__ );
-		cmdStr = optValuesStr;
-	}
-
-	//Parse the options valueStr sequences................
-	regexExec( cmdStr, optionValStrRgx, match =>{
-		let [,type,option,valueStr = '']=match,
-			  values = parseValueStr( valueStr, stripQuotes )
-			  ;
-		entries.update( option, values, type );
+		entries.update( currentOpt, value, currentType );
 	} );
 
 	return entries;
@@ -150,9 +98,9 @@ function parse( cmdStr, { stripQuotes = true }={} ){
 
 module.exports = parse;
 module.exports.optionTypes = optionTypes;
-module.exports.$test = {
-	regex:regex,
-	patterns,
-	regexExec,
-	parseValueStr
-};
+// module.exports.$test = {
+// 	regex:regex,
+// 	patterns,
+// 	regexExec,
+// 	parseValueStr
+// };
