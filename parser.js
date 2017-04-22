@@ -6,8 +6,9 @@
 
 let patterns;
 
+	const _$ = String.raw;
 {
-	const _$ = String.raw,
+	const
 		  qts = `"'\``,
 		  optLdr = _$`(?:--|-\D)`,                           
 		  notLdr = _$`(?!--|-\D)`,                           
@@ -29,12 +30,19 @@ let patterns;
 		  cmdStr = _$`(?:${leadVals})?(?:${optVals})?(?:${trailingVals})?`,
 
 		  bRef = ( n ) => '\\'+n,    //avoid annoying 'Octal esape sequences' error
-		  value = _$`([^${qts}\s=][^\s=]*|([${qts})(.+?)${bRef( 2 )})`,
+		  value = _$`([^${qts}\s=][^\s=]*|([${qts}])(.+?)${bRef( 2 )})`,
 		  option = _$`${wsLdr}(${optLdr})([a-z$@#*&]\S*)`
 		  ;
 
 		  patterns = {valList,optVals,leadVals, trailingVals,cmdStr, option,value};
 }
+
+const regex = {
+	splitCmdStr: /\s(?=--|-\D)/i,
+	cmdStr: new RegExp(patterns.cmdStr,'i'),
+	value: new RegExp(patterns.value,'i'),
+	option:new RegExp(patterns.options,'ig') 
+};
 
 const optPtn = /(--|-(?!\d))([a-z$@#*&]\S*)/.source,
 	  optionValStrRgx = /(?:^|\s)(--|-(?!\d))([a-z$@#*&]*)(?=\s+|=|$)(?:\s*(?:\s|=)\s*(\S(?!--|-\D)(?:.(?!--|-\D))*))?/gi,
@@ -143,6 +151,7 @@ function parse( cmdStr, { stripQuotes = true }={} ){
 module.exports = parse;
 module.exports.optionTypes = optionTypes;
 module.exports.$test = {
+	regex:regex,
 	patterns,
 	regexExec,
 	parseValueStr
