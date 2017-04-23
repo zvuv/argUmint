@@ -5,12 +5,12 @@
  */
 
 
-const _$=String.raw,
-		optionPtn = _$`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&]\S*)|\s)`,
-      valuePtn = _$`([^'"\`\s=][^\s=]*)`,
-		qtStringPtn = `(['"\`])(.+)\\4`,
-		regex = new RegExp(`${optionPtn}|${valuePtn}|${qtStringPtn}`,'gi')
-;
+const
+	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&]\S*)|\s)`,
+	  valuePtn = String.raw`([^'"\`\s=][^\s=]*)`,
+	  qtStringPtn = `(['"\`])(.+)\\4`,
+	  regex = new RegExp( `${optionPtn}|${valuePtn}|${qtStringPtn}`, 'gi' )
+	  ;
 
 /**
  *
@@ -29,27 +29,30 @@ function regexExec( str, rgx, callback ){
 	}
 }
 
-
 /**
  *
  * @return {*}
  * @constructor
  */
-function Entries(){
-	if(!(this instanceof Entries)){
-		return new Entries();
+class Entries {
+
+	constructor( option, type , value){
+		this.update( option, type, value);
+		this.update('_',optionTypes.u);
+		this.update('__',optionTypes.uu);
+	}
+
+	update( option, type, value){
+		if( !option ){return;}
+
+		if( !this[option] ){ this[option] = { values: [], type }; }
+
+		if( value ){value = value.trim();}
+		if( !value ){return;}
+
+		this[option].values.push( value );
 	}
 }
-Entries.prototype={
-	update( option, value, type ){
-		if( !this[option] ){ this[option] = { values:[], type }; }
-		if(value === undefined || value === null){return;}
-
-		value = value.trim();
-		if(value){this[option].values.push( value );}
-	}
-};
-
 
 const optionTypes = { 'h': '-', 'hh': '--', 'u': '_', 'uu': '__' };
 
@@ -59,38 +62,42 @@ const optionTypes = { 'h': '-', 'hh': '--', 'u': '_', 'uu': '__' };
  * @param stripQuotes
  * @return {*}
  */
-function parse( cmdStr,  stripQuotes = true  ){
-	let entries = Entries(),
-	currentOpt = '_',
-	currentType=optionTypes.u
-	;
+function parse( cmdStr, stripQuotes = true ){
 
-	regexExec( cmdStr, regex , match =>{
+	let currentOpt = '_', // name is same as type.
+		  currentType = optionTypes.u,
+		  entries = new Entries()
+		  ;
+
+	regexExec( cmdStr, regex, match =>{
+
 		let [matchedStr,optLdr,optName,value,qt, unQtString]=match;
 
-		if(optLdr!==undefined){
+		if( optLdr !== undefined ){
 
-			// trailing values................
-			if(currentType == optionTypes.uu){
-				value = matchedStr;
-			}
+			// trailing values.  Don't care what type of token...
+			if( currentType == optionTypes.uu ){ value = matchedStr; }
+
 			// start of trailing values.......
 			else if( '--' == optLdr && !optName.trim() ){
 				currentOpt = '__';
 				currentType = optionTypes.uu;
 			}
-			//follow the leader..............
+
+			//found an option token................
 			else{
 				currentOpt = optName;
 				currentType = optLdr;
 			}
 
 		}
-		else if(value === undefined){
-			value=stripQuotes? unQtString:matchedStr;
+		else if( value === undefined ){
+			value = stripQuotes? unQtString: matchedStr;
 		}
+		//else{ its a value token and no action was needed }
 
-		entries.update( currentOpt, value, currentType );
+		entries.update( currentOpt, currentType, value );
+
 	} );
 
 	return entries;
@@ -98,9 +105,4 @@ function parse( cmdStr,  stripQuotes = true  ){
 
 module.exports = parse;
 module.exports.optionTypes = optionTypes;
-// module.exports.$test = {
-// 	regex:regex,
-// 	patterns,
-// 	regexExec,
-// 	parseValueStr
-// };
+module.exports.test={Entries};
