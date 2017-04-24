@@ -4,8 +4,8 @@
  *@module argUmint
  */
 
-const parser = require( './parser' ),
-	  optionTypes=parser.optionTypes,
+const cmdStrParser = require( './cmdStrParser' ),
+	  OPTIONTYPES=cmdStrParser.OPTIONTYPES,
 	  typeEvaluators = require( './types' )
 	  ;
 
@@ -84,17 +84,17 @@ function ArgUmint( ...args ){
 
 	let { defaults, typed, types, aliases }=config;
 
-	//make a doubly linked copy of the aliases.............
+	//extend aliases to be a doubly linked map...................
 	keysOf( aliases ).forEach( key => aliases[aliases[key]] = key);
 
-	//extend the defaults to include aliases............
+	//extend the defaults to include aliases.....................
 	keysOf( defaults ).forEach( key =>{
 		let alias = aliases[key];
 		if( !alias || defaults[alias] !== undefined ){return;}
 		defaults[alias] = defaults[key];
 	} );
 
-	//extend the list of typed options to include aliases............
+	//extend the list of typed options to include aliases........
 	keysOf( typed ).forEach( key =>{
 		let alias = aliases[key];
 		if( alias && !typed[alias] ){typed[alias] = typed[key];}
@@ -115,11 +115,11 @@ function ArgUmint( ...args ){
 
 		if(!cmdStr){return {};}
 
-		let entries = parser( cmdStr, config.stripQuotes );
+		let entries = cmdStrParser( cmdStr, config.stripQuotes );
 
-		//replace flag clusters with individual flags.............
+		//expand flag clusters to individual flags entries...........
 		keysOf( entries )
-			  .filter( key => entries[key].type == optionTypes['-'] && key.length > 1 )
+			  .filter( key => entries[key].type == OPTIONTYPES['-'] && key.length > 1 )
 			  .forEach( key =>{
 				  [...key].forEach( k => entries[k] = entries[key] );
 				  delete entries[key];
@@ -129,7 +129,6 @@ function ArgUmint( ...args ){
 		let dict = keysOf( entries ).reduce( ( o, key ) =>{
 			let entry = entries[key],
 				  type = typed[key] || 'default',
-				  alias = aliases[key],
 				  info = {
 					  option    : key,
 					  optionType: entries[key].type,
@@ -138,6 +137,8 @@ function ArgUmint( ...args ){
 
 			o[key] = typeEvaluators[type]( entry.values, info );
 
+			//set aliases but only if no value has been supplied for them
+			let alias = aliases[key];
 			if( alias && !entries[alias] ){ o[alias] = o[key]; }
 
 			return o;

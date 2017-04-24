@@ -6,7 +6,7 @@
 const config = require( '../setup' ),
 	  path = require( 'path' ),
 	  fs = require( 'fs' ),
-	  parser = require(config.modulePath('parser'))
+	  parser = require(config.modulePath( 'cmdStrParser'))
 	  ;
 
 describe('Test Spec',()=>{

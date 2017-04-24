@@ -9,9 +9,14 @@ const
 	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&]\S*)|\s)`,
 	  valuePtn = String.raw`([^'"\`\s=][^\s=]*)`,
 	  qtStringPtn = `(['"\`])(.+)\\4`,
-	  regex = new RegExp( `${optionPtn}|${valuePtn}|${qtStringPtn}`, 'gi' )
-	  ;
+	  regex = new RegExp( `${optionPtn}|${valuePtn}|${qtStringPtn}`, 'gi' ), 
 
+	  OPTIONTYPES = {
+		  flag: '-',
+		  option: '--',
+		  leading: '_',
+		  trailing: '__' 
+	  };
 /**
  *
  * @param str
@@ -38,8 +43,8 @@ class Entries {
 
 	constructor( option, type , value){
 		this.update( option, type, value);
-		this.update('_',optionTypes.u);
-		this.update('__',optionTypes.uu);
+		this.update( '_', OPTIONTYPES.leading);
+		this.update( '__', OPTIONTYPES.trailing);
 	}
 
 	update( option, type, value){
@@ -54,7 +59,6 @@ class Entries {
 	}
 }
 
-const optionTypes = { 'h': '-', 'hh': '--', 'u': '_', 'uu': '__' };
 
 /**
  *
@@ -65,7 +69,7 @@ const optionTypes = { 'h': '-', 'hh': '--', 'u': '_', 'uu': '__' };
 function parse( cmdStr, stripQuotes = true ){
 
 	let currentOpt = '_', // name is same as type.
-		  currentType = optionTypes.u,
+		  currentType = OPTIONTYPES.leading,
 		  entries = new Entries()
 		  ;
 
@@ -73,15 +77,15 @@ function parse( cmdStr, stripQuotes = true ){
 
 		let [matchedStr,optLdr,optName,value,qt, unQtString]=match;
 
-		if( optLdr !== undefined ){
+		if( optLdr ){
 
 			// trailing values.  Don't care what type of token...
-			if( currentType == optionTypes.uu ){ value = matchedStr; }
+			if( currentType == OPTIONTYPES.trailing ){ value = matchedStr; }
 
 			// start of trailing values.......
 			else if( '--' == optLdr && !optName.trim() ){
 				currentOpt = '__';
-				currentType = optionTypes.uu;
+				currentType = OPTIONTYPES.trailing;
 			}
 
 			//found an option token................
@@ -104,5 +108,5 @@ function parse( cmdStr, stripQuotes = true ){
 }
 
 module.exports = parse;
-module.exports.optionTypes = optionTypes;
+module.exports.OPTIONTYPES = OPTIONTYPES;
 module.exports.test={Entries};
