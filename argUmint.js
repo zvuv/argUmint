@@ -61,7 +61,7 @@ function mergeObjs( tgt, ...srcs ){
 	return tgt;
 }
 
-const Evaluator = (function( evaluators, OPTIONTYPES ){
+const EvaluatorFactory = (function( evaluators, OPTIONTYPES ){
 
 	const proto = mergeObjs({},evaluators,{OPTIONTYPES});
 	proto.base = proto;
@@ -134,6 +134,9 @@ function ArgUmint( ...args ){
 	let typedOptions = keysOf(typed).reduce((tObj,type)=>{
 	    let opts = typed[type];
 
+		 if(!opts){return;}
+		 if(!Array.isArray(opts)){opts=[opts];}
+
 		 opts.forEach(option=>{
 			 tObj[option]=type;
 			 let alias = aliases[option];
@@ -143,7 +146,7 @@ function ArgUmint( ...args ){
 		 return tObj;
 	},{});
 
-	const evaluator = Evaluator(  typedOptions, types, config );
+	const Evaluator = EvaluatorFactory( typedOptions, types, config );
 
 	/**
 	 *
@@ -160,7 +163,7 @@ function ArgUmint( ...args ){
 
 		//expand flag clusters to individual flags entries...........
 		keysOf( rawEntries )
-			  .filter( key => rawEntries[key].type == OPTIONTYPES['-'] && key.length > 1 )
+			  .filter( key => rawEntries[key].type == OPTIONTYPES.flag && key.length > 1 )
 			  .forEach( key =>{
 				  [...key].forEach( k => rawEntries[k] = rawEntries[key] );
 				  delete rawEntries[key];
@@ -170,7 +173,7 @@ function ArgUmint( ...args ){
 		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
 			let { values, type:optionType } = rawEntries[option];
 
-			dictObj[option] = evaluator( values, option, optionType );
+			dictObj[option] = Evaluator( values, option, optionType );
 
 			//set aliases but only if no value has been supplied for them
 			let alias = aliases[option];

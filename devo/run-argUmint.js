@@ -10,11 +10,11 @@ let config = {
 	defaults: { u: 'you', x: 'ham' },
 	aliases : { a: 'aardvark', f: 'file', x: 'eggs', n:'numz' },
 	typed   : {
-		numArray:['numz'],
-		numeric:['age'],
-		boolean:['a'],
+		numArray:'numz',
+		numeric:'age',
+		boolean:'a',
 		json:['dict','list'],
-		dt:['date']
+		date:'dt'
 		// numz: 'numArray',
 		// age : 'numeric',
 		// a   : 'boolean',
