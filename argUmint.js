@@ -5,7 +5,7 @@
  */
 
 const cmdStrParser = require( './cmdStrParser' ),
-	  OPTIONTYPES=cmdStrParser.OPTIONTYPES,
+	  OPTIONTYPES = cmdStrParser.OPTIONTYPES,
 	  typeEvaluators = require( './types' )
 	  ;
 
@@ -28,12 +28,13 @@ function isObject( x ){
 
 /**
  * Deep merge of objects with object properties.
+ * Merges enumarable own properties
  * Does not support arrays.
+ * @param {Object} tgt target object
  * @param {Object} ...srcs objects to be merged
  * @return {Object} new object with merged properties.
  */
-function mergeObjs( ...srcs ){
-	let tgt = {};
+function mergeObjs( tgt, ...srcs ){
 
 	function merge( tgt, src ){
 		keysOf( src ).forEach( key =>{
@@ -51,8 +52,39 @@ function mergeObjs( ...srcs ){
 	}
 
 	srcs.forEach( src => merge( tgt, src ) );
+
 	return tgt;
 }
+
+const Evaluator = (function( evaluators, OPTIONTYPES ){
+
+	const proto = mergeObjs({},evaluators,{OPTIONTYPES});
+	proto.base = proto;
+
+	return function( typedOptions = {}, userEvaluators, info = {} ){
+
+		let userProto = Object.create( proto );
+
+		userProto.user = userProto;
+		userProto.typedOptions = typedOptions;
+		mergeObjs( userProto, userEvaluators, info );
+
+
+		function _Evaluator( values = [], optionName = '', optionType ){
+			let obj = Object.create( userProto );
+
+			obj.values = values;
+			obj.optionName = optionName;
+			obj.optionType = optionType;
+
+			let typeName = typedOptions[obj.optionName] || 'default';
+			return obj[typeName]( values );
+		}
+
+		return _Evaluator;
+	};
+
+})( typeEvaluators, OPTIONTYPES );
 
 //default config object..................................
 const defaultConfig = {
@@ -62,7 +94,6 @@ const defaultConfig = {
 	typed      : { '_': 'noop', '__': 'noop' },
 	types      : {}
 };
-
 
 /**
  *
@@ -75,17 +106,16 @@ function ArgUmint( ...args ){
 	//process arguments...................................
 	let cmdStr = '', config = {}, [p0,p1]=args;
 
-
 	if( isObject( p0 ) ){ config = p0; }
-	else if( isString( p0 ) || Array.isArray(p0)){ [cmdStr, config = {}] = [p0, p1];}
+	else if( isString( p0 ) || Array.isArray( p0 ) ){ [cmdStr, config = {}] = [p0, p1];}
 	else{ throw new TypeError( `parameters are of the wrong type` );}
 
-	config = mergeObjs( defaultConfig, config );
+	config = mergeObjs( {}, defaultConfig, config );
 
 	let { defaults, typed, types, aliases }=config;
 
 	//extend aliases to be a doubly linked map...................
-	keysOf( aliases ).forEach( key => aliases[aliases[key]] = key);
+	keysOf( aliases ).forEach( key => aliases[aliases[key]] = key );
 
 	//extend the defaults to include aliases.....................
 	keysOf( defaults ).forEach( key =>{
@@ -101,8 +131,9 @@ function ArgUmint( ...args ){
 	} );
 
 	//custom type typeEvaluators................................
-	keysOf( types ).forEach( key => typeEvaluators[key] = types[key] );
+	//keysOf( types ).forEach( key => typeEvaluators[key] = types[key] );
 
+	const evaluator = Evaluator(  typed, types, config );
 
 	/**
 	 *
@@ -111,37 +142,31 @@ function ArgUmint( ...args ){
 	 */
 	function argUmint( cmdStr ){
 
-		if(Array.isArray(cmdStr)){ cmdStr = cmdStr.join('');}
+		if( Array.isArray( cmdStr ) ){ cmdStr = cmdStr.join( '' );}
 
-		if(!cmdStr){return {};}
+		if( !cmdStr ){return {};}
 
-		let entries = cmdStrParser( cmdStr, config.stripQuotes );
+		let rawEntries = cmdStrParser( cmdStr, config.stripQuotes );
 
 		//expand flag clusters to individual flags entries...........
-		keysOf( entries )
-			  .filter( key => entries[key].type == OPTIONTYPES['-'] && key.length > 1 )
+		keysOf( rawEntries )
+			  .filter( key => rawEntries[key].type == OPTIONTYPES['-'] && key.length > 1 )
 			  .forEach( key =>{
-				  [...key].forEach( k => entries[k] = entries[key] );
-				  delete entries[key];
+				  [...key].forEach( k => rawEntries[k] = rawEntries[key] );
+				  delete rawEntries[key];
 			  } );
 
 		//evaluate the entries and build a dictionary of N,V pairs
-		let dict = keysOf( entries ).reduce( ( o, key ) =>{
-			let entry = entries[key],
-				  type = typed[key] || 'default',
-				  info = {
-					  option    : key,
-					  optionType: entries[key].type,
-					  default   : defaults[key]
-				  };
+		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
+			let { values, type:optionType } = rawEntries[option];
 
-			o[key] = typeEvaluators[type]( entry.values, info );
+			dictObj[option] = evaluator( values, option, optionType );
 
 			//set aliases but only if no value has been supplied for them
-			let alias = aliases[key];
-			if( alias && !entries[alias] ){ o[alias] = o[key]; }
+			let alias = aliases[option];
+			if( alias && !rawEntries[alias] ){ dictObj[alias] = dictObj[option]; }
 
-			return o;
+			return dictObj;
 		}, {} );
 
 		//apply defaults........................................

@@ -11,7 +11,7 @@ module.exports= {
 
 	noop :noop,
 
-	default( values, info){
+	default( values){
 
 		switch(values.length) {
 
@@ -29,12 +29,12 @@ module.exports= {
 		}
 	},
 
-	string( values, info){
+	string( values){
 		if( !values.length ){return;}
 		return values.join( ' ' );
 	},
 
-	boolean( values, info){
+	boolean( values){
 
 		if( values.length ){
 			let [str]=values, retVal;
@@ -54,7 +54,7 @@ module.exports= {
 		return true;
 	},
 
-	numeric( values, info){
+	numeric( values){
 
 		if( !values.length ){return;}
 
@@ -62,7 +62,7 @@ module.exports= {
 		return Number( str.trim() );
 	},
 
-	json( values, info){
+	json( values){
 		if( !values.length ){return;}
 
 		let str = values.join( '' )
