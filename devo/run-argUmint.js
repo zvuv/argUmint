@@ -8,14 +8,19 @@ const argU = require( './../argUmint' );
 
 let config = {
 	defaults: { u: 'you', x: 'ham' },
-	aliases : { a: 'aardvark', f: 'file', x: 'eggs' },
+	aliases : { a: 'aardvark', f: 'file', x: 'eggs', n:'numz' },
 	typed   : {
-		numz: 'numArray',
-		age : 'numeric',
-		a   : 'boolean',
-		dict: 'json',
-		list: 'json',
-		dt  : 'date'
+		numArray:['numz'],
+		numeric:['age'],
+		boolean:['a'],
+		json:['dict','list'],
+		dt:['date']
+		// numz: 'numArray',
+		// age : 'numeric',
+		// a   : 'boolean',
+		// dict: 'json',
+		// list: 'json',
+		// dt  : 'date'
 	},
 	types   : {
 		numArray( values ){

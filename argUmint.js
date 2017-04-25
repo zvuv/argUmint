@@ -29,7 +29,7 @@ function isObject( x ){
 /**
  * Deep merge of objects with object properties.
  * Merges enumarable own properties
- * Does not support arrays.
+ * Supports only arrays containing strings
  * @param {Object} tgt target object
  * @param {Object} ...srcs objects to be merged
  * @return {Object} new object with merged properties.
@@ -44,7 +44,12 @@ function mergeObjs( tgt, ...srcs ){
 				merge( tgt[key] || (tgt[key] = {}), prop );
 			}
 			else if( Array.isArray( prop ) ){
-				throw new TypeError( `merge does not support arrays` );
+				let tgtArray=tgt[key]; 
+				if(!tgtArray){tgt[key]=tgtArray=[];}
+
+				prop.forEach(el=>{
+					if(!tgtArray.includes(el)){tgtArray.push(el);}
+				});
 			}
 			else{ tgt[key] = prop;}
 
@@ -91,7 +96,7 @@ const defaultConfig = {
 	stripQuotes: true,
 	defaults   : {},
 	aliases    : {},
-	typed      : { '_': 'noop', '__': 'noop' },
+	typed      : { noop:['_', '__']},
 	types      : {}
 };
 
@@ -124,16 +129,21 @@ function ArgUmint( ...args ){
 		defaults[alias] = defaults[key];
 	} );
 
-	//extend the list of typed options to include aliases........
-	keysOf( typed ).forEach( key =>{
-		let alias = aliases[key];
-		if( alias && !typed[alias] ){typed[alias] = typed[key];}
-	} );
+	//build a dictionary of option,type entries from the 
+	//'typed' configuration data
+	let typedOptions = keysOf(typed).reduce((tObj,type)=>{
+	    let opts = typed[type];
 
-	//custom type typeEvaluators................................
-	//keysOf( types ).forEach( key => typeEvaluators[key] = types[key] );
+		 opts.forEach(option=>{
+			 tObj[option]=type;
+			 let alias = aliases[option];
+		    if( alias ){tObj[alias] = type;}
+		 });
 
-	const evaluator = Evaluator(  typed, types, config );
+		 return tObj;
+	},{});
+
+	const evaluator = Evaluator(  typedOptions, types, config );
 
 	/**
 	 *
