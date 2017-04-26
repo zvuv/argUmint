@@ -6,7 +6,7 @@
 
 
 const
-	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&]\S*)|\s)`,
+	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&][^\s=]*)|\s)`,
 	  valuePtn = String.raw`([^'"\`\s=][^\s=]*)`,
 	  qtStringPtn = `(['"\`])(.+)\\4`,
 	  regex = new RegExp( `${optionPtn}|${valuePtn}|${qtStringPtn}`, 'gi' ), 

@@ -21,7 +21,7 @@ function isString( obj ){
 
 function isObject( x ){
 	return !(x instanceof String)
-		  && !Array.isArray( x )
+		  // && !Array.isArray( x )
 		  && !(x instanceof Function)
 		  && Object( x ) === x;
 }
@@ -29,7 +29,6 @@ function isObject( x ){
 /**
  * Deep merge of objects with object properties.
  * Merges enumarable own properties
- * Supports only arrays containing strings
  * @param {Object} tgt target object
  * @param {Object} ...srcs objects to be merged
  * @return {Object} new object with merged properties.
@@ -41,15 +40,8 @@ function deepAssign( tgt, ...srcs ){
 			let prop = src[key];
 
 			if( isObject( prop ) ){
-				merge( tgt[key] || (tgt[key] = {}), prop );
-			}
-			else if( Array.isArray( prop ) ){
-				let tgtArray=tgt[key]; 
-				if(!tgtArray){tgt[key]=tgtArray=[];}
-
-				prop.forEach(el=>{
-					if(!tgtArray.includes(el)){tgtArray.push(el);}
-				});
+				if(!tgt[key]){tgt[key]=Array.isArray(prop)?[]:{};}
+				merge( tgt[key] , prop );
 			}
 			else{ tgt[key] = prop;}
 
