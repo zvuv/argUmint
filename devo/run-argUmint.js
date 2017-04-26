@@ -14,7 +14,8 @@ let config = {
 		numeric:'age',
 		boolean:'a',
 		json:['dict','list'],
-		date:'dt'
+		date:'dt',
+		proto:'proto'
 		// numz: 'numArray',
 		// age : 'numeric',
 		// a   : 'boolean',
@@ -43,10 +44,11 @@ let config = {
 // let cmdStr = String.raw`one two -7 debug-brk -rst  --fruit apple  __ last words`;
 // let cmdStr = String.raw` apple pear --f abc.txt --xyz yz -rst  __ last words`;
 //let cmdStr = String.raw`first -abc "yes" --file coriander\stuff.txt --numz -1 39  -xyz salang -rst __ final`;
-let cmdStr = ` abc  ships shoes sealing wax --dt jul 1 1998 --dict {a:3,b:true,'see':"bananas"} -f "a/b/c. txt" `
-			 +`--age 30 --list=['a','b','c'] --numz  1  2 3 5.78e6  -abc`
-	  +` --  dog  -horse  --rat`
-	  ;
+// let cmdStr = ` abc  ships shoes sealing wax --dt jul 1 1998 --dict {a:3,b:true,'see':"bananas"} -f "a/b/c. txt" `
+// 			 +`--age 30 --list=['a','b','c'] --numz  1  2 3 5.78e6  -abc`
+// 	  +` --  dog  -horse  --rat`
+// 	  ;
+let cmdStr='--proto';
 let dict = argU( cmdStr,config );
 console.log(dict);
 

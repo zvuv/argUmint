@@ -76,7 +76,11 @@ module.exports= {
 				return JSON.parse( str );
 	},
 
-	attributes:noop
+	attributes:noop,
+
+	proto(){ 
+		return Object.getPrototypeOf(this);
+	}
 };
 
 

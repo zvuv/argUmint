@@ -6,7 +6,7 @@
 
 const cmdStrParser = require( './cmdStrParser' ),
 	  OPTIONTYPES = cmdStrParser.OPTIONTYPES,
-	  typeEvaluators = require( './types' )
+	  typeEvaluators = require( './evaluators' )
 	  ;
 
 //.................................................
@@ -61,34 +61,38 @@ function mergeObjs( tgt, ...srcs ){
 	return tgt;
 }
 
-const EvaluatorFactory = (function( evaluators, OPTIONTYPES ){
+let Evaluator = (function( evaluators, OPTIONTYPES ){
 
-	const proto = mergeObjs({},evaluators,{OPTIONTYPES});
+	let proto = mergeObjs({},evaluators,{OPTIONTYPES});
 	proto.base = proto;
 
-	return function( typedOptions = {}, userEvaluators, info = {} ){
+	return function( typedOptions = {}, userEvaluators, config = {} ){
 
-		let userProto = Object.create( proto );
+		proto = Object.create( proto ); 
+		proto.typedOptions = typedOptions;
+		proto.config = config;
+		mergeObjs( proto , userEvaluators);
 
-		userProto.user = userProto;
-		userProto.typedOptions = typedOptions;
-		mergeObjs( userProto, userEvaluators, info );
+		return function(cmdStr,rawEntries){
 
+			proto = Object.create( proto ); 
+			proto.cmdStr=cmdStr;
+			proto.rawEntries=rawEntries;
 
-		function _Evaluator( values = [], optionName = '', optionType ){
-			let obj = Object.create( userProto );
+			return function _Evaluator( values = [], optionName = '', optionType ){
 
-			obj.values = values;
-			obj.optionName = optionName;
-			obj.optionType = optionType;
+				let obj = Object.create( proto );
 
-			let typeName = typedOptions[obj.optionName] || 'default';
-			return obj[typeName]( values );
-		}
+				obj.values = values;
+				obj.optionName = optionName;
+				obj.optionType = optionType;
 
-		return _Evaluator;
-	};
+				let typeName = obj.typedOptions[optionName] || 'default';
 
+				return obj[typeName]( values );
+			}; 
+		};
+	}; 
 })( typeEvaluators, OPTIONTYPES );
 
 //default config object..................................
@@ -146,7 +150,7 @@ function ArgUmint( ...args ){
 		 return tObj;
 	},{});
 
-	const Evaluator = EvaluatorFactory( typedOptions, types, config );
+	Evaluator = Evaluator( typedOptions, types, config );
 
 	/**
 	 *
@@ -168,6 +172,8 @@ function ArgUmint( ...args ){
 				  [...key].forEach( k => rawEntries[k] = rawEntries[key] );
 				  delete rawEntries[key];
 			  } );
+
+		Evaluator = Evaluator(cmdStr,rawEntries);
 
 		//evaluate the entries and build a dictionary of N,V pairs
 		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
