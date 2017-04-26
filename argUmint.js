@@ -34,7 +34,7 @@ function isObject( x ){
  * @param {Object} ...srcs objects to be merged
  * @return {Object} new object with merged properties.
  */
-function mergeObjs( tgt, ...srcs ){
+function deepAssign( tgt, ...srcs ){
 
 	function merge( tgt, src ){
 		keysOf( src ).forEach( key =>{
@@ -61,39 +61,47 @@ function mergeObjs( tgt, ...srcs ){
 	return tgt;
 }
 
-let Evaluator = (function( evaluators, OPTIONTYPES ){
+/**
+ * Evaluator functions are invoked bound to a context object which 
+ * exposes  useful properties and methods including other evaluators
+ * and even Argumint itself.  
+ *
+ * This method is invoked multiple times, adding a link to the 
+ * prototype chain with each call.  Finally, it returns a constructor
+ * which creates the context instance  and passes the option value to
+ * the evaluator which is invoked as a  method and returns the result.
+ */
+let Evaluator = (function( evaluators, OPTIONTYPES, ArgUmint ){
 
-	let proto = mergeObjs({},evaluators,{OPTIONTYPES});
+	let proto = deepAssign({},evaluators,{OPTIONTYPES,ArgUmint});
 	proto.base = proto;
 
-	return function( typedOptions = {}, userEvaluators, config = {} ){
+	return function( typedOptions = {}, userEvaluators, config = {}){
 
 		proto = Object.create( proto ); 
-		proto.typedOptions = typedOptions;
-		proto.config = config;
-		mergeObjs( proto , userEvaluators);
+		//proto.typedOptions = typedOptions;
+		deepAssign( proto , userEvaluators, {typedOptions, config });
 
-		return function(cmdStr,rawEntries){
+		return function(cmdStr,rawEntries,argUmint){
 
 			proto = Object.create( proto ); 
-			proto.cmdStr=cmdStr;
-			proto.rawEntries=rawEntries;
+			deepAssign(proto,{cmdStr,rawEntries,argUmint});
 
-			return function _Evaluator( values = [], optionName = '', optionType ){
+			return function _Evaluator(  optionName = '', optionType, ...values ){
 
-				let obj = Object.create( proto );
+				let contextObj = Object.create( proto );
 
-				obj.values = values;
-				obj.optionName = optionName;
-				obj.optionType = optionType;
+				contextObj.values = values;
+				contextObj.optionName = optionName;
+				contextObj.optionType = optionType;
 
-				let typeName = obj.typedOptions[optionName] || 'default';
+				let typeName = contextObj.typedOptions[optionName] || 'default';
 
-				return obj[typeName]( values );
+				return contextObj[typeName]( ...values );
 			}; 
 		};
 	}; 
-})( typeEvaluators, OPTIONTYPES );
+})( typeEvaluators, OPTIONTYPES, ArgUmint );
 
 //default config object..................................
 const defaultConfig = {
@@ -119,8 +127,7 @@ function ArgUmint( ...args ){
 	else if( isString( p0 ) || Array.isArray( p0 ) ){ [cmdStr, config = {}] = [p0, p1];}
 	else{ throw new TypeError( `parameters are of the wrong type` );}
 
-	config = mergeObjs( {}, defaultConfig, config );
-
+	config = deepAssign( {}, defaultConfig, config ); 
 	let { defaults, typed, types, aliases }=config;
 
 	//extend aliases to be a doubly linked map...................
@@ -152,12 +159,13 @@ function ArgUmint( ...args ){
 
 	Evaluator = Evaluator( typedOptions, types, config );
 
+
 	/**
 	 *
 	 * @param cmdStr
 	 * @return {Object} dictionary of Name Value pairs.
 	 */
-	function argUmint( cmdStr ){
+	 function argUmint( cmdStr ){
 
 		if( Array.isArray( cmdStr ) ){ cmdStr = cmdStr.join( '' );}
 
@@ -169,17 +177,17 @@ function ArgUmint( ...args ){
 		keysOf( rawEntries )
 			  .filter( key => rawEntries[key].type == OPTIONTYPES.flag && key.length > 1 )
 			  .forEach( key =>{
-				  [...key].forEach( k => rawEntries[k] = rawEntries[key] );
+				  [...key].forEach( flag => rawEntries[flag] = rawEntries[key] );
 				  delete rawEntries[key];
 			  } );
 
-		Evaluator = Evaluator(cmdStr,rawEntries);
+		Evaluator = Evaluator(cmdStr,rawEntries,argUmint);
 
 		//evaluate the entries and build a dictionary of N,V pairs
 		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
 			let { values, type:optionType } = rawEntries[option];
 
-			dictObj[option] = Evaluator( values, option, optionType );
+			dictObj[option] = Evaluator(  option, optionType, ...values );
 
 			//set aliases but only if no value has been supplied for them
 			let alias = aliases[option];

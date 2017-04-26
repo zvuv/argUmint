@@ -1,17 +1,17 @@
 'use strict';
 
 /**
-*@module typeEvaluators
-*/
+ *@module typeEvaluators
+ */
 
 
-const noop = val=>val;
+const noop = ( ...values ) => values;
 
-module.exports= {
+module.exports = {
 
-	noop :noop,
+	noop: noop,
 
-	default( values){
+	default( ...values ){
 
 		switch(values.length) {
 
@@ -29,20 +29,23 @@ module.exports= {
 		}
 	},
 
-	string( values){
+	string( ...values ){
 		if( !values.length ){return;}
 		return values.join( ' ' );
 	},
 
-	boolean( values){
+	boolean( ...values ){
 
 		if( values.length ){
-			let [str]=values, retVal;
+			let str = values[0].trim().toLowerCase(),
+				  retVal
+				  ;
 
-			switch(str.toLowerCase().trim()) {
-				case "false":
-				case "no":
-				case "0":
+			switch(str) {
+				case 'false':
+				case 'no':
+				case 'n':
+				case '0':
 				case null:
 					retVal = false;
 				default:
@@ -54,32 +57,32 @@ module.exports= {
 		return true;
 	},
 
-	numeric( values){
+	numeric( ...values ){
 
 		if( !values.length ){return;}
 
-		let [str]=values;
-		return Number( str.trim() );
+		return Number( values[0].trim() );
 	},
 
-	json( values){
+	json( ...values ){
 		if( !values.length ){return;}
 
-		let str = values.join( '' )
-		.trim()
-		//wrap field names in quotes...............
-		.replace( /([{,])\s*([a-z_$][\w\_\$]*)\s*:/gi, '$1 "$2":' )
-			//replace single with double quotes
-			.replace( /([{\[:,]\s*)('([^']+)')/gi, '$1"$3"' )
-				;
+		let str = values
+			  .join( '' )
+			  .trim()
+			  //wrap field names in quotes...............
+			  .replace( /([{,])\s*([a-z_$][\w\_\$]*)\s*:/gi, '$1 "$2":' )
+			  //replace single with double quotes
+			  .replace( /([{\[:,]\s*)('([^']+)')/gi, '$1"$3"' )
+			  ;
 
-				return JSON.parse( str );
+		return JSON.parse( str );
 	},
 
-	attributes:noop,
+	attributes: noop,
 
-	proto(){ 
-		return Object.getPrototypeOf(this);
+	proto(){
+		return Object.getPrototypeOf( this );
 	}
 };
 
