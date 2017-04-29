@@ -10,7 +10,6 @@ const cmdStrParser = require( './cmdStrParser' ),
 	  OPTIONKINDS = cmdStrParser.OPTIONTYPES,
 	  typeEvaluators = require( './evaluators' )
 	  ;
-
 //.................................................
 //utility functions                               .
 //.................................................
@@ -26,12 +25,23 @@ function isObject( x ){
 
 /**
  * Deep merge of a sequence of objects 
- * Merges enumarable own properties
- * Properties are overwritten from left to right
+ * Recursive merge of own enumerable properties
+ * Properties are overwritten from right to left
+ * Duck Type assignment.  Other than matching arrays
+ * to arrays, the function does not pay attention
+ * to types.
  */
 function deepAssign( tgt, ...srcs ){
 
 	function merge( tgt, src ){
+		if(src === undefined){
+			throw new TypeError('src is undefined');
+		}
+
+		if( Array.isArray(tgt) !== Array.isArray(src) ){
+			throw new TypeError('src & tgt must both be arrays or objects');
+		}
+
 		keysOf( src ).forEach( key =>{
 			let prop = src[key];
 
@@ -79,7 +89,7 @@ function AndAlias(aliases){
  * evaluator methods. The context object is not returned, just 
  * the value obtained from invoking the evaluator method.
  */
-let Evaluator = (function( evaluators, info ){
+let ConfigProto = (function( evaluators, info ){
 
 	let proto = deepAssign({},evaluators,info);
 	proto.base = proto;
@@ -140,7 +150,7 @@ function ArgUmint( ...args ){
 	else{ throw new TypeError( `parameters are of the wrong type` );}
 
 	config = deepAssign( {}, defaultConfig, config ); 
-	let { defaults, typed, types:userEvaluators, aliases }=config;
+	var { defaults, typed, types:userEvaluators, aliases }=config;
 
 	let andAlias = AndAlias(aliases);
 
@@ -158,8 +168,7 @@ function ArgUmint( ...args ){
 		 return tObj;
 	},{});
 
-	Evaluator = Evaluator(  userEvaluators, optionTypes, {config,andAlias} );
-
+	let UserProto = ConfigProto(  userEvaluators, optionTypes, {config,andAlias} );
 
 	/**
 	 *
@@ -182,7 +191,7 @@ function ArgUmint( ...args ){
 				  delete rawEntries[key];
 			  } );
 
-		Evaluator = Evaluator(cmdStr,rawEntries,argUmint);
+		let Evaluator = UserProto(cmdStr,rawEntries,argUmint);
 
 		//evaluate the entries and build a dictionary of N,V pairs
 		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
