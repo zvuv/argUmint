@@ -8,14 +8,14 @@ const argU = require( './../argUmint' );
 
 let config = {
 	defaults: { u: 'you', x: 'ham' },
-	aliases : { a: 'aardvark', f: 'file', x: 'eggs', n:'numz' },
+	aliases : { a: 'aardvark', f: 'file', x: 'eggs', n: 'numz' },
 	typed   : {
-		numArray:'numz',
-		numeric:'age',
-		boolean:'a',
-		json:['dict','list'],
-		date:'dt',
-		proto:'proto'
+		numArray: 'numz',
+		numeric : 'age',
+		boolean : 'a',
+		json    : ['dict', 'list'],
+		date    : 'dt',
+		proto   : 'proto'
 		// numz: 'numArray',
 		// age : 'numeric',
 		// a   : 'boolean',
@@ -32,8 +32,8 @@ let config = {
 			let dateStr = values.join( ' ' );
 			return new Date( dateStr )
 				  .toJSON()
-				  .slice(0,10)
-				  .replace(/-/g,'/')
+				  .slice( 0, 10 )
+				  .replace( /-/g, '/' )
 				  ;
 		}
 
@@ -46,11 +46,24 @@ let config = {
 // let cmdStr = String.raw`first -abc "yes" --file coriander\stuff.txt --numz -1 39  -xyz salang -rst __ final`;
 let cmdStr = ` abc  ships shoes sealing wax --dt jul 1 1998 --dict {a:3,b:true,'see':"bananas"} -f "a/b/c. txt" `
 			 +`--age 30 --list=['a','b','c'] --numz  1  2 3 5.78e6  -abc`
-	  +` --  dog  -horse  --rat`
+			 +` --  dog  -horse  --rat`
 	  ;
+
+// config = {
+// 	aliases: { apple: 'fruit', beast:'animal' },
+// 	defaults:{'animal':'lion'},
+// 	typed  : { emphasize: 'fruit' },
+// 	types  : {
+// 		emphasize( ...values )   {
+// 			return `${values.join( ' ' )}!`;
+// 		}
+// 	}
+// };
+//
+// cmdStr = '--apple macIntosh  --beast bear --animal tiger';
 //let cmdStr='--proto';
-let dict = argU( cmdStr,config );
-console.log(dict);
+let dict = argU( cmdStr, config );
+console.log( dict );
 
 // Object.keys(result).forEach(key=>{
 // 	let entry = result[key];

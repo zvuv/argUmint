@@ -1,8 +1,7 @@
 {
   "spec_dir": "jasmine-specs",
   "spec_files": [
-    "setup.js",
-    "all-specs/*[sS]pec.js"
+    "specs/*[sS]pec.js"
   ],
   "helpers": [
     "../node_modules/jasmine-expect/index.js"

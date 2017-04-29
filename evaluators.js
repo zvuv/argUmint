@@ -34,34 +34,28 @@ module.exports = {
 		return values.join( ' ' );
 	},
 
-	boolean( ...values ){
+	boolean( value ){
 
-		if( values.length ){
-			let str = values[0].trim().toLowerCase(),
-				  retVal
-				  ;
-
-			switch(str) {
-				case 'false':
-				case 'no':
-				case 'n':
-				case '0':
-				case null:
-					retVal = false;
-				default:
-					retVal = Boolean( str );
-			}
-
-			return retVal;
+		switch(value) {
+			// no value supplied defaults to true!
+		   case undefined:
+			case null:
+			case '':
+				return true;
+			case 'false':
+			case 'no':
+			case 'n':
+			case '0':
+				return false;
+			default:
+				 return Boolean( value );
 		}
-		return true;
+
 	},
 
-	numeric( ...values ){
+	numeric( value){ 
 
-		if( !values.length ){return;}
-
-		return Number( values[0].trim() );
+		return Number( value);
 	},
 
 	json( ...values ){

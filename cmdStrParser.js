@@ -6,7 +6,7 @@
 
 
 const
-	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&][^\s=]*)|\s)`,
+	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&_][^\s=]*)|\s)`,
 	  valuePtn = String.raw`([^'"\`\s=][^\s=]*)`,
 	  qtStringPtn = `(['"\`])(.+)\\4`,
 	  regex = new RegExp( `${optionPtn}|${valuePtn}|${qtStringPtn}`, 'gi' ), 
@@ -17,26 +17,39 @@ const
 		  leading: '_',
 		  trailing: '__' 
 	  };
+
 /**
+ * Wrapper to civilize the RegExp exec fcn.
+ * Passes each match to the callback fcn
  *
- * @param str
- * @param rgx
+ * @param text
+ * @param regex
  * @param callback
  */
-function regexExec( str, rgx, callback ){
-	if( !rgx.global ){ rgx = new RegExp( rgx, rgx.flags+'g' );}
+function regexExec( text, regex, callback ){
+	if( !regex.global ){ regex = new RegExp( rgx, rgx.flags+'g' );}
 	let match;
 
-	while( (match = rgx.exec( str )) !== null ){
-		//don't get stuck on zero length matches.....
-		if( match.index === rgx.lastIndex ){ rgx.lastIndex++;}
+	while( (match = regex.exec( text )) !== null ){ 
+
+		if( match.index === regex.lastIndex ){
+			regex.lastIndex++; //don't get stuck on zero length matches
+		}
 		else{ callback( match );}
+
 	}
 }
 
 /**
+ * Builds a table of (option, info) entries where each 
+ * entry is an object { values:[], type:OPTIONTYPE }.
  *
- * @return {*}
+ * Rejects falsy or blank string values
+ *
+ * Always has entries for _ && __ whether they have values
+ * or not.
+ *
+ * @return {Object}
  * @constructor
  */
 class Entries {
@@ -48,12 +61,12 @@ class Entries {
 	}
 
 	update( option, type, value){
-		if( !option ){return;}
 
-		if( !this[option] ){ this[option] = { values: [], type }; }
+		if(!option){return;}
 
-		if( value ){value = value.trim();}
-		if( !value ){return;}
+		if( !(option in this) ){ this[option] = { values: [], type }; }
+
+		if( !value || !(value = value.trim()) ){return;}
 
 		this[option].values.push( value );
 	}
@@ -61,10 +74,23 @@ class Entries {
 
 
 /**
+ * Option tokens have the form  --option or -flag and can be 
+ * followed by a string of values which are anything preceded
+ * by  space or =  character.  
+ *
+ * For quoted string values, the outer quotes are  removed 
+ * by default.  If stripQuotes = false, they will be retained.
+ *
+ * Leading values not preceded by an option are assigned to the
+ * _ option.   
+ *
+ * Trailing values, anything following the -- option are assigned
+ * to the __ option regardless of whether they look like options
+ * or values.
  *
  * @param cmdStr
  * @param stripQuotes
- * @return {*}
+ * @return {Entries}
  */
 function parse( cmdStr, stripQuotes = true ){
 
@@ -109,4 +135,4 @@ function parse( cmdStr, stripQuotes = true ){
 
 module.exports = parse;
 module.exports.OPTIONTYPES = OPTIONTYPES;
-module.exports.test={Entries};
+module.exports._$test={Entries};
