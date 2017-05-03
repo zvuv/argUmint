@@ -17,10 +17,10 @@ function isObj( x ){
 }
 
 /**
- * Duck type equality.  Fails if one is an array and the 
+ * Duck type equality.  Fails if one is an array and the
  * the other not.  Otherwise it does no type checking.
  *
- */ 
+ */
 function deepEqual( a, b ){
 
 	if( Object.is( a, b ) ){return true;}
@@ -42,22 +42,22 @@ function deepAssign( tgt, ...srcs ){
 
 	function merge( tgt, src ){
 
-		if(src === undefined){
-			throw new TypeError('src is undefined');
+		if( src === undefined ){
+			throw new TypeError( 'src is undefined' );
 		}
 
-		if( Array.isArray(tgt) !== Array.isArray(src) ){
-			throw new TypeError('src & tgt must both be arrays or objects');
+		if( Array.isArray( tgt ) !== Array.isArray( src ) ){
+			throw new TypeError( 'src & tgt must both be arrays or objects' );
 		}
 
 		keysOf( src ).forEach( key =>{
 			let prop = src[key];
 
 			if( isObj( prop ) ){
-				if(!(key in tgt)){
-					tgt[key]=Array.isArray(prop)?[]:{};
+				if( !(key in tgt) ){
+					tgt[key] = Array.isArray( prop )? []: {};
 				}
-				merge( tgt[key] , prop );
+				merge( tgt[key], prop );
 			}
 			else{ tgt[key] = prop;}
 
@@ -68,7 +68,6 @@ function deepAssign( tgt, ...srcs ){
 
 	return tgt;
 }
-
 
 describe( 'ArgUmint Specs', () =>{
 	describe( 'helper functions', () =>{
@@ -119,7 +118,7 @@ describe( 'ArgUmint Specs', () =>{
 
 				let expected = {
 						  a: 'apple', b: 'honey', hay: 'apple', bee: 'honey',
-						  c : 'zee', see                            : 'zee'
+						  c                                        : 'zee', see                            : 'zee'
 					  },
 					  isEqual = deepEqual( aliased, expected )
 					  ;
@@ -135,7 +134,7 @@ describe( 'ArgUmint Specs', () =>{
 
 				let expected = {
 						  a: 'apple', b: 'honey', hay: 'apple', bee: 'honey',
-						  c : 'zee', see: 'sea'
+						  c                                        : 'zee', see                            : 'sea'
 					  },
 					  isEqual = deepEqual( aliased, expected )
 					  ;
@@ -147,105 +146,137 @@ describe( 'ArgUmint Specs', () =>{
 		describe( 'deepAssign', () =>{
 			let deepAssign = _$test.deepAssign;
 
-			it('should copy simple properties',()=>{
+			it( 'should copy simple properties', () =>{
 				let src = { a: 'apple', b: 'honey', c: 'zee', see: 'sea' },
-				tgt = deepAssign({},src);
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+					  tgt = deepAssign( {}, src );
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should overwrite existing properties',()=>{
+			it( 'should overwrite existing properties', () =>{
 				let src = { a: 'apple', b: 'honey', c: 'zee', see: 'sea' },
-				tgt = deepAssign({a:'pear'},src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+					  tgt = deepAssign( { a: 'pear' }, src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should not copy from the prototype',()=>{
-				let src = Object.create({ a: 'apple', b: 'honey', c: 'zee', see: 'sea' }),
-				tgt = deepAssign({},src)
-				;
-				expect(keysOf(tgt).length).toEqual(0);
-			});
+			it( 'should not copy from the prototype', () =>{
+				let src = Object.create( { a: 'apple', b: 'honey', c: 'zee', see: 'sea' } ),
+					  tgt = deepAssign( {}, src )
+					  ;
+				expect( keysOf( tgt ).length ).toEqual( 0 );
+			} );
 
-			it('should copy  properties recursively',()=>{
-				let src = { o: {i:'q',j:{jay:'bird'}}},
-				tgt = deepAssign({},src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-				expect(Object.is(src.o,tgt.o)).toEqual(false);
-			});
+			it( 'should copy  properties recursively', () =>{
+				let src = { o: { i: 'q', j: { jay: 'bird' } } },
+					  tgt = deepAssign( {}, src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+				expect( Object.is( src.o, tgt.o ) ).toEqual( false );
+			} );
 
-			it('should copy arrays',()=>{
-			   let src=['the', 'slings','and','arrows'],
-				tgt = deepAssign([],src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+			it( 'should copy arrays', () =>{
+				let src = ['the', 'slings', 'and', 'arrows'],
+					  tgt = deepAssign( [], src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should copy array properties',()=>{
-			   let src={a:['the', 'slings','and','arrows']},
-				tgt = deepAssign({},src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+			it( 'should copy array properties', () =>{
+				let src = { a: ['the', 'slings', 'and', 'arrows'] },
+					  tgt = deepAssign( {}, src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should copy array properties containing objects and arrays',()=>{
-			   let src={a:[[...'letters'], {a:3.14159,b:2.7182}]},
-				tgt = deepAssign({},src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+			it( 'should copy array properties containing objects and arrays', () =>{
+				let src = { a: [[...'letters'], { a: 3.14159, b: 2.7182 }] },
+					  tgt = deepAssign( {}, src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should copy function properties ',()=>{
-			   let src={f:()=>null, g(){}},
-				tgt = deepAssign({},src)
-				;
-				expect(deepEqual(tgt,src)).toEqual(true);
-			});
+			it( 'should copy function properties ', () =>{
+				let src = { f: () => null, g(){} },
+					  tgt = deepAssign( {}, src )
+					  ;
+				expect( deepEqual( tgt, src ) ).toEqual( true );
+			} );
 
-			it('should copy from multiple sources',()=>{
-				let tgt = deepAssign({},{a:1},{b:2},{c:3}),
-				expected = {a:1,b:2,c:3}
-				;
-				expect(deepEqual(tgt,expected)).toEqual(true);
-			});
+			it( 'should copy from multiple sources', () =>{
+				let tgt = deepAssign( {}, { a: 1 }, { b: 2 }, { c: 3 } ),
+					  expected = { a: 1, b: 2, c: 3 }
+					  ;
+				expect( deepEqual( tgt, expected ) ).toEqual( true );
+			} );
 
-			it('should copy and override from multiple sources',()=>{
-				let tgt = deepAssign({},{a:1},{a:2},{a:3}),
-				expected = {a:3}
-				;
-				expect(deepEqual(tgt,expected)).toEqual(true);
-			});
+			it( 'should copy and override from multiple sources', () =>{
+				let tgt = deepAssign( {}, { a: 1 }, { a: 2 }, { a: 3 } ),
+					  expected = { a: 3 }
+					  ;
+				expect( deepEqual( tgt, expected ) ).toEqual( true );
+			} );
 
-			it('should not copy objects onto arrays or vice versa ',()=>{
-				expect(_=> deepAssign({},[])).toThrow();
-				expect(_=> deepAssign([],{})).toThrow();
-			});
+			it( 'should not copy objects onto arrays or vice versa ', () =>{
+				expect( _ => deepAssign( {}, [] ) ).toThrow();
+				expect( _ => deepAssign( [], {} ) ).toThrow();
+			} );
 		} );
 
-		describe('configuration object.',()=>{
+		describe( 'configuration object.', () =>{
 
-			function getProp(propName,cmdStr='',config={}){
+			function getProp( propName, cmdStr = '', config = {} ){
 
-				let cfg = deepAssign( {},{
-					typed: { getProperty: 'prop' },
-					types: { getProperty(prop){ return this[prop];}}
-					} ,
-					config
-				),
-				str = `--prop ${propName} ${cmdStr}`,
-				dict = ArgUmint( str,cfg )
-				;
+				let cfg = deepAssign( {}, {
+					                      typed: { getProperty: 'prop' },
+					                      types: { getProperty( prop ){ return this[prop];} }
+				                      },
+				                      config
+					  ),
+					  str = `--prop ${propName} ${cmdStr}`,
+					  dict = ArgUmint( str, cfg )
+					  ;
 
 				return dict['prop'];
 			}
 
-			let config = getProp('config');
+			it( 'should set defaults', () =>{
 
+				let config = getProp( 'config', { defaults: { a: 1, b: 2 } } ),
+					  defaults = { a: 1, b: 2 },
+					  result = getProp( 'config', '', { defaults } )
+					  ;
+				expect( deepEqual( defaults, result.defaults ) ).toEqual( true );
+			} );
 
+			it( 'should set aliases', () =>{
 
-		});
+				let aliases = { a: 'b' },
+					  result = getProp( 'config', '', { aliases } )
+					  ;
+				expect( deepEqual( aliases, result.aliases ) ).toEqual( true );
+			} );
 
+			it( 'should set option types', function(){
+
+				let typed = { numeric: ['a', 'b'], boolean: 'c' },
+					  result = getProp( 'config', '', { typed } )
+					  ;
+
+				expect( deepEqual( typed.numeric, result.typed.numeric ) ).toEqual( true );
+				expect( typed.boolean ).toEqual( result.typed.boolean );
+
+			} );
+
+			it('should add type evaluators',()=>{
+				let config ={types:{hi:function(){return 'hi';}}},
+					  result = getProp( 'config', '-h', config )
+				;
+
+				expect(config.types.hi()).toEqual(result.types.hi());
+
+			});
+
+		} );
 
 	} );
 } );

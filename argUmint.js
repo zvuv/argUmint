@@ -16,6 +16,10 @@ const cmdStrParser = require( './cmdStrParser' ),
 
 const keysOf = Object.keys;
 
+function entriesOf(obj){
+	return keysOf(obj).map((key,i)=>({key,value:obj[key],i}));
+}
+
 function isObject( x ){
 	return !(x instanceof String)
 		  && !(x instanceof Function)
@@ -42,8 +46,7 @@ function deepAssign( tgt, ...srcs ){
 			throw new TypeError('src & tgt must both be arrays or objects');
 		}
 
-		keysOf( src ).forEach( key =>{
-			let prop = src[key];
+		entriesOf(src).forEach( ({key,value:prop})=>{	
 
 			if( isObject( prop ) ){
 				if(!(key in tgt)){
@@ -77,6 +80,21 @@ function AndAlias(aliases){
 	};
 }
 
+function AndAliases(aliases){
+
+	entriesOf(aliases).forEach( ({key,value})=>alias[value=key]);
+
+	return function _andAliases(tgt,overwrite = true){
+
+		entriesOf(aliases)
+		.filter(({key:option,value})=> key in tgt && (overwrite || !(alias in tgt) ))
+		.forEach(({key:option,value:alias})=> tgt[alias]=tgt[option] )
+		;
+
+		return tgt;
+	};
+}
+
 /**
  * evaluator functions are invoked bound to a context object.  This
  * context object which exposes  useful properties and methods ,
@@ -89,17 +107,17 @@ function AndAlias(aliases){
  * evaluator methods. The context object is not returned, just 
  * the value obtained from invoking the evaluator method.
  */
-let ConfigProto = (function( evaluators, info ){
+let ConfigProto = (function _BaseProto( evaluators, info ){
 
 	let proto = deepAssign({},evaluators,info);
 	proto.base = proto;
 
-	return function(userEvaluators,  optionTypes = {}, info= {}){
+	return function _ConfigProto(userEvaluators,  optionTypes = {}, info= {}){
 
 		proto = Object.create( proto ); 
 		deepAssign( proto , userEvaluators, {optionTypes}, info );
 
-		return function(cmdStr,rawEntries,argUmint){
+		return function _UserProto(cmdStr,rawEntries,argUmint){
 
 			proto = Object.create( proto ); 
 			deepAssign(proto,{cmdStr,rawEntries,argUmint});
@@ -152,21 +170,21 @@ function ArgUmint( ...args ){
 	config = deepAssign( {}, defaultConfig, config ); 
 	var { defaults, typed, types:userEvaluators, aliases }=config;
 
-	let andAlias = AndAlias(aliases);
+	let andAlias = AndAlias(deepAssign({},aliases));
 
-	//build a dictionary of option:type entries from the 
-	//'typed' configuration data
-	let optionTypes = keysOf(typed).reduce((tObj,type)=>{
-	    let optsList = typed[type];
-		 if(!Array.isArray(optsList)){optsList=[optsList];}
+	let optionTypes = entriesOf(typed)
+		.reduce( (tObj,entry)=> {
+			 let {key:type,value:optsList}=entry;
+			 //let optsList = typed[type];
+			 if(!Array.isArray(optsList)){optsList=[optsList];}
 
-		 optsList.forEach(option=>{
-			 tObj[option]=type;
-			 andAlias(tObj,option);
-		 });
+			 optsList.forEach(option=>{
+				 tObj[option]=type;
+				 andAlias(tObj,option);
+			 });
 
 		 return tObj;
-	},{});
+		},{});
 
 	let UserProto = ConfigProto(  userEvaluators, optionTypes, {config,andAlias} );
 
@@ -181,21 +199,23 @@ function ArgUmint( ...args ){
 
 		if( !cmdStr ){return {_:null,__:null};}
 
-		let rawEntries = cmdStrParser( cmdStr, config.stripQuotes );
+		let parsedOptions = cmdStrParser( cmdStr, config.stripQuotes );
 
 		//expand flag clusters to individual flags entries...........
-		keysOf( rawEntries )
-			  .filter( key => rawEntries[key].type == OPTIONKINDS.flag && key.length > 1 )
-			  .forEach( key =>{
-				  [...key].forEach( flag => rawEntries[flag] = rawEntries[key] );
-				  delete rawEntries[key];
+	  	   entriesOf(parsedOptions)
+			  .filter(({key,value})=>value.type == OPTIONKINDS.flag && key.length>1 )
+			  .forEach( ({key,value}) =>{
+				  [...key].forEach( flag => parsedOptions[flag] = value );
+				  delete parsedOptions[key];
 			  } );
 
-		let Evaluator = UserProto(cmdStr,rawEntries,argUmint);
+		let Evaluator = UserProto(cmdStr,parsedOptions,argUmint);
 
 		//evaluate the entries and build a dictionary of N,V pairs
-		let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
-			let { values, type:optionKind } = rawEntries[option];
+		// let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
+		let dict = entriesOf(parsedOptions).reduce((dictObj,entry)=>{
+			let {key:option,value:entryData} = entry;
+			let { values, type:optionKind } = entryData;
 
 			dictObj[option] = Evaluator(  option, optionKind, ...values ); 
 			andAlias(dictObj,option,false);//dont overwrite existing values
@@ -204,12 +224,13 @@ function ArgUmint( ...args ){
 		}, {} );
 
 		//apply defaults........................................
-		keysOf( defaults ).forEach( key =>{
-			if( !dict[key] ){
-				dict[key] = defaults[key];
-				andAlias(dict,key,false);
-			}
-		} );
+		// keysOf( defaults ).forEach( key =>{
+		entriesOf(defaults)
+			.filter( ({key,value}) => !(key in dict))
+			.forEach(({key,value})=>{
+					dict[key] = value;
+					andAlias(dict,key,false);
+			} );
 
 		return dict;
 	}
