@@ -113,17 +113,9 @@ function ArgUmint( ...args ){
 
 		if( !cmdStr ){return {_:null,__:null};}
 
-		let parsedOptions = cmdStrParser( cmdStr, config.stripQuotes );
+		const {stripQuotes,expandFlags}=config; 
+		let parsedOptions = cmdStrParser( cmdStr, {stripQuotes,expandFlags});
 
-		//expand flag clusters to individual flags entries...........
-	  	   entriesOf(parsedOptions)
-			  .filter(({key,value})=>value.type == OPTIONKINDS.flag && key.length>1 )
-			  .forEach( ({key,value}) =>{
-				  [...key].forEach( flag => parsedOptions[flag] = value );
-				  delete parsedOptions[key];
-			  } );
-
-		//let Evaluator = UserProto(cmdStr,parsedOptions,argUmint);
 
 		//evaluate the entries and build a dictionary of N,V pairs
 		// let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{

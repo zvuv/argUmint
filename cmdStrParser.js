@@ -6,6 +6,7 @@
 
 
 const
+	  {entriesOf}=require('./argUtilities'),
 	  optionPtn = String.raw`(?:^|\s)(--|-(?=\D))((?:[a-z$@#*&_][^\s=]*)|\s)`,
 	  valuePtn = String.raw`([^'"\`\s=][^\s=]*)`,
 	  qtStringPtn = `(['"\`])(.+)\\4`,
@@ -60,15 +61,20 @@ class Entries {
 		this.update( '__', OPTIONTYPES.trailing);
 	}
 
-	update( option, type, value){
+	update( option, type, ...values){
 
 		if(!option){return;}
 
 		if( !(option in this) ){ this[option] = { values: [], type }; }
 
-		if( !value || !(value = value.trim()) ){return;}
+		values = values.filter(val=> !this.isEmpty(val));
 
-		this[option].values.push( value );
+
+		this[option].values.push( ...values );
+	}
+
+	isEmpty(value){
+		return [undefined,null,''].includes(value);
 	}
 }
 
@@ -92,7 +98,7 @@ class Entries {
  * @param stripQuotes
  * @return {Entries}
  */
-function parse( cmdStr, stripQuotes = true ){
+function parse( cmdStr, {stripQuotes = true, expandFlags=true} ){
 
 	let currentOpt = '_', // name is same as type.
 		  currentType = OPTIONTYPES.leading,
@@ -129,6 +135,18 @@ function parse( cmdStr, stripQuotes = true ){
 		entries.update( currentOpt, currentType, value );
 
 	} );
+
+	if(expandFlags){
+		entriesOf(entries)
+			.filter(({key:option,value:entry})=> entry.type== OPTIONTYPES.flag 
+															 && option.length>1 
+					  )
+			.forEach(({key:option,value:entry})=>{
+				let {type,values}=entry;
+				delete entries[option];
+				[...option].forEach(flag=>entries.update(flag,type,...values));
+			});
+ 	}
 
 	return entries;
 }
