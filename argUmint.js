@@ -4,147 +4,58 @@
  *@module argUmint
  */
 
-const cmdStrParser = require( './cmdStrParser' ),
-	  //Using the word 'optionType' for a different purpose 
-	  //here, so we will call these optionKinds
-	  OPTIONKINDS = cmdStrParser.OPTIONTYPES,
-	  typeEvaluators = require( './evaluators' )
-	  ;
-//.................................................
-//utility functions                               .
-//.................................................
+const cmdStrParser = require( './cmdStrParser' ), 
+		typeEvaluators = require( './evaluators' ),
+		{ isObject, entriesOf, deepAssign, AndAlias } = require('./argUtilities'),
 
-const keysOf = Object.keys;
-
-function entriesOf(obj){
-	return keysOf(obj).map((key,i)=>({key,value:obj[key],i}));
-}
-
-function isObject( x ){
-	return !(x instanceof String)
-		  && !(x instanceof Function)
-		  && Object( x ) === x
-		  ;
-}
-
-/**
- * Deep merge of a sequence of objects 
- * Recursive merge of own enumerable properties
- * Properties are overwritten from right to left
- * Duck Type assignment.  Other than matching arrays
- * to arrays, the function does not pay attention
- * to types.
- */
-function deepAssign( tgt, ...srcs ){
-
-	function merge( tgt, src ){
-		if(src === undefined){
-			throw new TypeError('src is undefined');
-		}
-
-		if( Array.isArray(tgt) !== Array.isArray(src) ){
-			throw new TypeError('src & tgt must both be arrays or objects');
-		}
-
-		entriesOf(src).forEach( ({key,value:prop})=>{	
-
-			if( isObject( prop ) ){
-				if(!(key in tgt)){
-					tgt[key]=Array.isArray(prop)?[]:{};
-				}
-				merge( tgt[key] , prop );
-			}
-			else{ tgt[key] = prop;}
-
-		} );
-	}
-
-	srcs.forEach( src => merge( tgt, src ) );
-
-	return tgt;
-}
-
-function AndAlias(aliases){ 
-	
-	//extend aliases to be a doubly linked map...................
-	keysOf( aliases ).forEach( key => aliases[aliases[key]] = key );
-
-	return function (tgt, option, overwrite=true){
-		if(!(option in aliases)){return;}
-
-		let alias = aliases[option];
-
-		if( !overwrite && alias in tgt ){return;} 
-
-		tgt[alias]=tgt[option];
-	};
-}
-
-function AndAliases(aliases){
-
-	entriesOf(aliases).forEach( ({key,value})=>alias[value=key]);
-
-	return function _andAliases(tgt,overwrite = true){
-
-		entriesOf(aliases)
-		.filter(({key:option,value})=> key in tgt && (overwrite || !(alias in tgt) ))
-		.forEach(({key:option,value:alias})=> tgt[alias]=tgt[option] )
+		//Using the word 'optionType' for a different purpose 
+		//here, so we will call these optionKinds
+		OPTIONKINDS = cmdStrParser.OPTIONTYPES
 		;
 
-		return tgt;
-	};
-}
 
 /**
- * evaluator functions are invoked bound to a context object.  This
- * context object which exposes  useful properties and methods ,
- * including other evaluators, may be used by the evaluator functions
- * and also in testing.
+ * evaluator functions are invoked bound to a context object
+ * that holds instance information about the entry and whose 
+ * prototype exposes the evaluator function.
  *
- * This factory method is invoked multiple times, adding a link to the 
- * prototype chain with each call.  Finally, it returns a factory
- * which creates the context instance which then invokes one of its 
- * evaluator methods. The context object is not returned, just 
- * the value obtained from invoking the evaluator method.
+ * The factory method builds the prototype and returns the
+ * Evaluator function which creates context objects and
+ * uses them to invoke the required evaluator and returns
+ * the result.
  */
-let ConfigProto = (function _BaseProto( evaluators, info ){
 
-	let proto = deepAssign({},evaluators,info);
-	proto.base = proto;
+let EvaluatorFactory = (function(evaluators,OPTIONKINDS){
 
-	return function _ConfigProto(userEvaluators,  optionTypes = {}, info= {}){
+	const baseProto = deepAssign({},evaluators, {OPTIONKINDS});
+	baseProto.base=baseProto;
 
-		proto = Object.create( proto ); 
-		deepAssign( proto , userEvaluators, {optionTypes}, info );
+	return function _EvaluatorFactory(userEvaluators,optionTypes){
 
-		return function _UserProto(cmdStr,rawEntries,argUmint){
+		const proto = Object.create(baseProto);
+		deepAssign(proto,userEvaluators,{optionTypes});
 
-			proto = Object.create( proto ); 
-			deepAssign(proto,{cmdStr,rawEntries,argUmint});
+		return function _Evaluator(  optionName = '', optionKind, values ){
 
-			return function _Evaluator(  optionName = '', optionKind, ...values ){
+			const contextObj = Object.create( proto );
+			deepAssign(contextObj,{optionName,optionKind,values});
 
-				let contextObj = Object.create( proto );
+			//index to the required evaluator function and invoke it.
+			const typeName = contextObj.optionTypes[optionName] || 'default'; 
+			return contextObj[typeName]( ...values );
+		} ;
 
-				contextObj.values = values;
-				contextObj.optionName = optionName;
-				contextObj.optionKind = optionKind;
+	};
 
-				let typeName = contextObj.optionTypes[optionName] || 'default';
+} )(typeEvaluators,OPTIONKINDS);
 
-				return contextObj[typeName]( ...values );
-			}; 
-		};
-	}; 
-})( typeEvaluators, {
-	OPTIONKINDS,
-	ArgUmint,
-	_$test:{deepAssign,AndAlias,isObject}
-});
+// will hold copies of a  number of internal objects for testing....
+const _$test={};
 
 //default config object..................................
 const defaultConfig = {
 	stripQuotes: true,
+	expandFlags: true,
 	defaults   : {},
 	aliases    : {},
 	typed      : { noop:['_', '__']},
@@ -186,7 +97,10 @@ function ArgUmint( ...args ){
 		 return tObj;
 		},{});
 
-	let UserProto = ConfigProto(  userEvaluators, optionTypes, {config,andAlias} );
+	// let UserProto = ConfigProto(  userEvaluators, optionTypes, {config,andAlias} );
+	const Evaluator = EvaluatorFactory(userEvaluators, optionTypes);
+
+	deepAssign(_$test,{config,optionTypes});
 
 	/**
 	 *
@@ -209,7 +123,7 @@ function ArgUmint( ...args ){
 				  delete parsedOptions[key];
 			  } );
 
-		let Evaluator = UserProto(cmdStr,parsedOptions,argUmint);
+		//let Evaluator = UserProto(cmdStr,parsedOptions,argUmint);
 
 		//evaluate the entries and build a dictionary of N,V pairs
 		// let dict = keysOf( rawEntries ).reduce( ( dictObj, option ) =>{
@@ -217,7 +131,7 @@ function ArgUmint( ...args ){
 			let {key:option,value:entryData} = entry;
 			let { values, type:optionKind } = entryData;
 
-			dictObj[option] = Evaluator(  option, optionKind, ...values ); 
+			dictObj[option] = Evaluator(  option, optionKind, values ); 
 			andAlias(dictObj,option,false);//dont overwrite existing values
 
 			return dictObj;
@@ -240,3 +154,39 @@ function ArgUmint( ...args ){
 }
 
 module.exports = ArgUmint;
+module.exports._$test = _$test;
+
+// let ConfigProto = (function _BaseProto( evaluators, info ){
+
+// 	let proto = deepAssign({},evaluators,info);
+// 	proto.base = proto;
+
+// 	return function _ConfigProto(userEvaluators,  optionTypes = {}, info= {}){
+
+// 		proto = Object.create( proto ); 
+// 		deepAssign( proto , userEvaluators, {optionTypes}, info );
+
+// 		return function _UserProto(cmdStr,rawEntries,argUmint){
+
+// 			proto = Object.create( proto ); 
+// 			deepAssign(proto,{cmdStr,rawEntries,argUmint});
+
+// 			return function _Evaluator(  optionName = '', optionKind, ...values ){
+
+// 				let contextObj = Object.create( proto );
+
+// 				contextObj.values = values;
+// 				contextObj.optionName = optionName;
+// 				contextObj.optionKind = optionKind;
+
+// 				let typeName = contextObj.optionTypes[optionName] || 'default';
+
+// 				return contextObj[typeName]( ...values );
+// 			}; 
+// 		};
+// 	}; 
+// })( typeEvaluators, {
+// 	OPTIONKINDS,
+// 	ArgUmint,
+// 	_$test:{deepAssign,AndAlias}
+// });
